@@ -36,6 +36,9 @@
             <select id="filter-rep" class="filter-select">
                 <option value="all">جميع المندوبين (Medical Reps)</option>
             </select>
+            <select id="filter-item" class="filter-select">
+    <option value="all">جميع الأصناف (Items)</option>
+</select>
             <input type="month" id="filter-period-start" class="filter-input" value="2026-01">
             <input type="month" id="filter-period-end" class="filter-input" value="2026-12">
         </section>
@@ -73,10 +76,8 @@
                                 <tr>
                                     <th>المندوب</th>
                                     <th>الفريق</th>
-                                    <th>المنطقة</th>
-                                    <th>الزيارات المستهدفة</th>
-                                    <th>الزيارات الفعلية</th>
-                                    <th>نسبة التغطية</th>
+                                    <th>منطقة المندوب</th>
+                                    <th>إجمالي الزيارات الفعلية</th>
                                 </tr>
                             </thead>
                             <tbody id="visits-body">
