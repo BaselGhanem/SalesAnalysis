@@ -32,9 +32,12 @@ const salesData = [
 
 // 3. جدول الزيارات المفصول (Visits Fact Table)
 // الحقول: repId, date, actualVisits
+const specialtiesData = ["Center", "Chest", "Pediatric", "Internal", "GP"]; // ضع تخصصاتك الحقيقية هنا
+
+// تحديث جدول الزيارات (الصق بيانات الـ JSON التي حولتها هنا)
 const visitsData = [
-    { repId: 1, date: "2026-01-05", actualVisits: 8 },
-    { repId: 1, date: "2026-01-06", actualVisits: 10 },
-    { repId: 2, date: "2026-01-05", actualVisits: 12 }
-    // الصق بيانات الزيارات الحقيقية هنا
+    { repId: 1, date: "2026-03-01", Specialty: "Center", actualVisits: 60 },
+    { repId: 7, date: "2026-04-01", Specialty: "Center", actualVisits: 92 },
+    { repId: 30, date: "2026-05-01", Specialty: "Center", actualVisits: 9 },
+    { repId: 1, date: "2026-03-01", Specialty: "Chest", actualVisits: 14 }
 ];
