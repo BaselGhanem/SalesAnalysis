@@ -1,1 +1,95 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دار الدواء - منصة التحليلات التنفيذية 2026</title>
+    <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <!-- مكتبة Chart.js للرسوم البيانية -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- الشريط الجانبي / العلوي -->
+        <header class="app-header">
+            <div class="logo-area">
+                <h1>دار الدواء <span>Analytics</span></h1>
+            </div>
+            <div class="controls-area">
+                <!-- مفتاح التبديل بين القيمة والكمية -->
+                <div class="toggle-switch">
+                    <button id="btn-qty" class="toggle-btn">الكمية (Qty)</button>
+                    <button id="btn-val" class="toggle-btn active">القيمة (Value)</button>
+                </div>
+            </div>
+        </header>
 
+        <!-- نظام الفلترة المتقدم -->
+        <section class="filters-bar">
+            <select id="filter-team" class="filter-select">
+                <option value="all">جميع الفرق (Teams)</option>
+            </select>
+            <select id="filter-area" class="filter-select">
+                <option value="all">جميع المناطق (Areas)</option>
+            </select>
+            <select id="filter-rep" class="filter-select">
+                <option value="all">جميع المندوبين (Medical Reps)</option>
+            </select>
+            <input type="month" id="filter-period-start" class="filter-input" value="2026-01">
+            <input type="month" id="filter-period-end" class="filter-input" value="2026-12">
+        </section>
+
+        <!-- المحتوى الرئيسي للوحة القيادة -->
+        <main class="dashboard-grid">
+            <!-- المؤشرات التنفيذية (KPIs) -->
+            <div class="kpi-cards" id="kpi-container">
+                <!-- يتم توليدها عبر JavaScript -->
+            </div>
+
+            <!-- الرسوم البيانية -->
+            <div class="charts-section">
+                <div class="chart-card">
+                    <h3>تحليل المبيعات الشهري</h3>
+                    <div class="canvas-container"><canvas id="salesChart"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h3>مساهمة الفرق</h3>
+                    <div class="canvas-container"><canvas id="teamsChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- التحليل الاستراتيجي (SWOT) وجدول الزيارات -->
+            <div class="bottom-section">
+                <div class="swot-card" id="swot-container">
+                    <h3>رؤى الإدارة العليا (Executive Insights)</h3>
+                    <ul id="swot-list"></ul>
+                </div>
+                <div class="visits-card">
+                    <h3>إدارة الزيارات الميدانية</h3>
+                    <div class="table-responsive">
+                        <table id="visits-table">
+                            <thead>
+                                <tr>
+                                    <th>المندوب</th>
+                                    <th>الفريق</th>
+                                    <th>المنطقة</th>
+                                    <th>الزيارات المستهدفة</th>
+                                    <th>الزيارات الفعلية</th>
+                                    <th>نسبة التغطية</th>
+                                </tr>
+                            </thead>
+                            <tbody id="visits-body">
+                                <!-- يتم توليدها عبر JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="assets/js/data.js" defer></script>
+    <script src="assets/js/app.js" defer></script>
+</body>
+</html>
