@@ -1,18 +1,18 @@
 // إدارة حالة التطبيق
 const AppState = {
-    mode: 'value', // 'value' or 'qty'
+    mode: 'value',
     filters: {
         team: 'all',
-        area: 'all', // منطقة البيع
+        area: 'all',
         rep: 'all',
-        item: 'all', // فلتر الصنف
+        item: 'all',
+        specialty: 'all', // تمت إضافة فلتر التخصص هنا
         startDate: '2026-01',
         endDate: '2026-12'
     },
-    filteredSales: [], // مصفوفة المبيعات المفلترة
-    filteredVisits: [] // مصفوفة الزيارات المفلترة
+    filteredSales: [],
+    filteredVisits: []
 };
-
 // تهيئة أزرار التبديل
 document.getElementById('btn-val').addEventListener('click', (e) => {
     AppState.mode = 'value';
@@ -35,7 +35,8 @@ function toggleButtons(activeBtn) {
 function initFilters() {
     populateSelect('filter-team', teamsData);
     populateSelect('filter-area', areasData);
-    populateSelect('filter-item', itemsData); // إضافة الصنف
+    populateSelect('filter-item', itemsData);
+    populateSelect('filter-specialty', specialtiesData); // تهيئة قائمة التخصصات
     populateSelect('filter-rep', employees.map(e => ({ value: e.id, label: e.name })));
 
     document.querySelectorAll('.filter-select, .filter-input').forEach(el => {
@@ -46,7 +47,6 @@ function initFilters() {
         });
     });
 }
-
 function populateSelect(elementId, dataArray) {
     const select = document.getElementById(elementId);
     if(!select) return; // حماية من الأخطاء إذا لم يكن العنصر موجوداً
@@ -60,28 +60,18 @@ function populateSelect(elementId, dataArray) {
 }
 
 // محرك فلترة البيانات المزدوج (للمبيعات والزيارات)
-function applyDataFilters() {
-    const { team, area, rep, item, startDate, endDate } = AppState.filters;
-    const startObj = new Date(startDate);
-    const endObj = new Date(endDate);
-    
-    // تصحيح نهاية الشهر لتشمل آخر يوم فيه
-    endObj.setMonth(endObj.getMonth() + 1); 
-
-    // 1. فلترة بيانات المبيعات
-    AppState.filteredSales = salesData.filter(record => {
+AppState.filteredVisits = visitsData.filter(record => {
         const emp = employees.find(e => e.id === record.repId);
+        if (!emp) return false; // حماية في حال لم يجد المندوب
         const recordDate = new Date(record.date);
         
         const matchTeam = team === 'all' || emp.team === team;
-        const matchArea = area === 'all' || record.salesArea === area; // منطقة البيع
         const matchRep = rep === 'all' || record.repId.toString() === rep;
-        const matchItem = item === 'all' || record.item === item; // الصنف
+        const matchSpecialty = AppState.filters.specialty === 'all' || record.Specialty === AppState.filters.specialty; // فلترة التخصص
         const matchDate = recordDate >= startObj && recordDate < endObj;
 
-        return matchTeam && matchArea && matchRep && matchItem && matchDate;
+        return matchTeam && matchRep && matchSpecialty && matchDate;
     });
-
     // 2. فلترة بيانات الزيارات
     AppState.filteredVisits = visitsData.filter(record => {
         const emp = employees.find(e => e.id === record.repId);
@@ -200,37 +190,40 @@ function updateVisitsTable() {
     tbody.innerHTML = '';
 
     if (AppState.filteredVisits.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="empty-state">لا توجد بيانات مطابقة لفلاتر البحث الحالية.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="empty-state">لا توجد بيانات مطابقة لفلاتر البحث الحالية.</td></tr>`;
         return;
     }
 
+    // تجميع الزيارات لكل مندوب ولكل تخصص
     const repVisits = {};
     AppState.filteredVisits.forEach(record => {
-        if (!repVisits[record.repId]) {
-            repVisits[record.repId] = 0;
+        // إنشاء مفتاح فريد يجمع بين المندوب والتخصص
+        const key = `${record.repId}_${record.Specialty}`; 
+        if (!repVisits[key]) {
+            repVisits[key] = { repId: record.repId, specialty: record.Specialty, actual: 0 };
         }
-        repVisits[record.repId] += record.actualVisits;
+        repVisits[key].actual += record.actualVisits;
     });
 
     const fragment = document.createDocumentFragment();
 
-    Object.keys(repVisits).forEach(repId => {
-        const emp = employees.find(e => e.id == repId);
-        const actual = repVisits[repId];
+    Object.values(repVisits).forEach(data => {
+        const emp = employees.find(e => e.id == data.repId);
+        if(!emp) return;
         
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${emp.name}</td>
             <td><span style="background:var(--bg-main); padding: 4px 8px; border-radius: 4px;">${emp.team}</span></td>
             <td>${emp.area}</td>
-            <td style="font-weight: bold; color: var(--primary);">${actual}</td>
+            <td style="color: var(--text-muted);">${data.specialty}</td>
+            <td style="font-weight: bold; color: var(--primary);">${data.actual}</td>
         `;
         fragment.appendChild(tr);
     });
 
     tbody.appendChild(fragment);
 }
-
 // تحليل ذكي جديد متوافق مع إلغاء تارجت الزيارات
 function generateSWOT() {
     const swotList = document.getElementById('swot-list');
