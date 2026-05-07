@@ -7,7 +7,7 @@ const AppState = {
         rep: 'all',
         item: 'all',
         specialty: 'all', // تمت إضافة فلتر التخصص هنا
-        startDate: '2026-01',
+        startDate: '2025-01',
         endDate: '2026-12'
     },
     filteredSales: [],
