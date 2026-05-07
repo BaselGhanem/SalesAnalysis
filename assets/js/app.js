@@ -3,12 +3,14 @@ const AppState = {
     mode: 'value', // 'value' or 'qty'
     filters: {
         team: 'all',
-        area: 'all',
+        area: 'all', // منطقة البيع
         rep: 'all',
+        item: 'all', // فلتر الصنف
         startDate: '2026-01',
         endDate: '2026-12'
     },
-    filteredData: []
+    filteredSales: [], // مصفوفة المبيعات المفلترة
+    filteredVisits: [] // مصفوفة الزيارات المفلترة
 };
 
 // تهيئة أزرار التبديل
@@ -28,16 +30,18 @@ function toggleButtons(activeBtn) {
     document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
     activeBtn.classList.add('active');
 }
+
+// تهيئة الفلاتر والقوائم المنسدلة
 function initFilters() {
-    // تعبئة القوائم المنسدلة
     populateSelect('filter-team', teamsData);
     populateSelect('filter-area', areasData);
+    populateSelect('filter-item', itemsData); // إضافة الصنف
     populateSelect('filter-rep', employees.map(e => ({ value: e.id, label: e.name })));
 
-    // ربط مستمعي الأحداث
     document.querySelectorAll('.filter-select, .filter-input').forEach(el => {
         el.addEventListener('change', (e) => {
-            AppState.filters[e.target.id.replace('filter-', '').replace('-start', 'Start').replace('-end', 'End')] = e.target.value;
+            const key = e.target.id.replace('filter-', '').replace('-start', 'Start').replace('-end', 'End');
+            AppState.filters[key] = e.target.value;
             runAnalyticsEngine();
         });
     });
@@ -45,6 +49,7 @@ function initFilters() {
 
 function populateSelect(elementId, dataArray) {
     const select = document.getElementById(elementId);
+    if(!select) return; // حماية من الأخطاء إذا لم يكن العنصر موجوداً
     dataArray.forEach(item => {
         const isObj = typeof item === 'object';
         const option = document.createElement('option');
@@ -54,65 +59,84 @@ function populateSelect(elementId, dataArray) {
     });
 }
 
+// محرك فلترة البيانات المزدوج (للمبيعات والزيارات)
 function applyDataFilters() {
-    const { team, area, rep, startDate, endDate } = AppState.filters;
+    const { team, area, rep, item, startDate, endDate } = AppState.filters;
     const startObj = new Date(startDate);
     const endObj = new Date(endDate);
     
-    // تصحيح نهاية الشهر
+    // تصحيح نهاية الشهر لتشمل آخر يوم فيه
     endObj.setMonth(endObj.getMonth() + 1); 
 
-    AppState.filteredData = salesData.filter(record => {
+    // 1. فلترة بيانات المبيعات
+    AppState.filteredSales = salesData.filter(record => {
         const emp = employees.find(e => e.id === record.repId);
         const recordDate = new Date(record.date);
         
         const matchTeam = team === 'all' || emp.team === team;
-        const matchArea = area === 'all' || emp.area === area;
+        const matchArea = area === 'all' || record.salesArea === area; // منطقة البيع
+        const matchRep = rep === 'all' || record.repId.toString() === rep;
+        const matchItem = item === 'all' || record.item === item; // الصنف
+        const matchDate = recordDate >= startObj && recordDate < endObj;
+
+        return matchTeam && matchArea && matchRep && matchItem && matchDate;
+    });
+
+    // 2. فلترة بيانات الزيارات
+    AppState.filteredVisits = visitsData.filter(record => {
+        const emp = employees.find(e => e.id === record.repId);
+        const recordDate = new Date(record.date);
+        
+        // الزيارات ليس لها صنف أو منطقة بيع، لذلك نفلتر حسب المندوب والفريق والتاريخ فقط
+        const matchTeam = team === 'all' || emp.team === team;
         const matchRep = rep === 'all' || record.repId.toString() === rep;
         const matchDate = recordDate >= startObj && recordDate < endObj;
 
-        return matchTeam && matchArea && matchRep && matchDate;
+        return matchTeam && matchRep && matchDate;
     });
 }
+
+// تحديث المؤشرات التنفيذية بناءً على المبيعات فقط
 function updateKPIs() {
     const container = document.getElementById('kpi-container');
-    container.innerHTML = ''; // تفريغ
+    container.innerHTML = ''; 
 
-    if(AppState.filteredData.length === 0) return;
+    if(AppState.filteredSales.length === 0) return;
 
     let total = 0;
     let targetTotal = 0;
     const isValue = AppState.mode === 'value';
 
-    AppState.filteredData.forEach(record => {
+    AppState.filteredSales.forEach(record => {
         total += isValue ? record.soldValue : record.soldQty;
     });
 
-    // حساب الهدف بناءً على الفريق المختار أو إجمالي الشركة
+    // حساب الهدف من كائن monthlyTargets الموجود في data.js
     if (AppState.filters.team !== 'all') {
-        targetTotal = targets2026[AppState.filters.team][isValue ? 'value' : 'qty'];
+        targetTotal = monthlyTargets[AppState.filters.team][isValue ? 'value' : 'qty'];
     } else {
-        Object.values(targets2026).forEach(t => targetTotal += t[isValue ? 'value' : 'qty']);
+        Object.values(monthlyTargets).forEach(t => targetTotal += t[isValue ? 'value' : 'qty']);
     }
 
-    const achievementRate = ((total / targetTotal) * 100).toFixed(1);
+    const achievementRate = targetTotal > 0 ? ((total / targetTotal) * 100).toFixed(1) : 0;
     const prefix = isValue ? 'JOD ' : '';
 
     container.innerHTML = `
         <div class="kpi-card">
             <h3>إجمالي المبيعات (${isValue ? 'قيمة' : 'كمية'})</h3>
             <div class="kpi-value">${prefix}${total.toLocaleString()}</div>
-            <div class="kpi-target">الهدف لعام 2026: ${prefix}${targetTotal.toLocaleString()}</div>
+            <div class="kpi-target">الهدف: ${prefix}${targetTotal.toLocaleString()}</div>
         </div>
         <div class="kpi-card">
-            <h3>نسبة التحقيق (YTD)</h3>
+            <h3>نسبة التحقيق</h3>
             <div class="kpi-value ${achievementRate >= 100 ? 'text-success' : 'text-danger'}">
                 ${achievementRate}%
             </div>
-            <div class="kpi-target">المتوقع: 100% بنهاية 2026</div>
+            <div class="kpi-target">تحديث مباشر</div>
         </div>
     `;
 }
+
 let chartsInstance = {};
 
 function updateCharts() {
@@ -124,10 +148,9 @@ function renderBarChart() {
     const ctx = document.getElementById('salesChart').getContext('2d');
     if (chartsInstance.sales) chartsInstance.sales.destroy();
 
-    // تجميع البيانات حسب الأشهر
     const monthlyData = {};
-    AppState.filteredData.forEach(record => {
-        const month = record.date.slice(0, 7); // YYYY-MM
+    AppState.filteredSales.forEach(record => {
+        const month = record.date.slice(0, 7); 
         monthlyData[month] = (monthlyData[month] || 0) + (AppState.mode === 'value' ? record.soldValue : record.soldQty);
     });
 
@@ -153,7 +176,7 @@ function renderPieChart() {
     if (chartsInstance.teams) chartsInstance.teams.destroy();
 
     const teamDataAgg = {};
-    AppState.filteredData.forEach(record => {
+    AppState.filteredSales.forEach(record => {
         const teamName = employees.find(e => e.id === record.repId).team;
         teamDataAgg[teamName] = (teamDataAgg[teamName] || 0) + (AppState.mode === 'value' ? record.soldValue : record.soldQty);
     });
@@ -170,49 +193,89 @@ function renderPieChart() {
         options: { responsive: true, maintainAspectRatio: false }
     });
 }
+
+// تحديث جدول الزيارات بناءً على بيانات الزيارات فقط (بدون تارجت وبـ 4 أعمدة فقط)
 function updateVisitsTable() {
     const tbody = document.getElementById('visits-body');
     tbody.innerHTML = '';
 
-    if (AppState.filteredData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="empty-state">لا توجد بيانات مطابقة لفلاتر البحث الحالية.</td></tr>`;
+    if (AppState.filteredVisits.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="empty-state">لا توجد بيانات مطابقة لفلاتر البحث الحالية.</td></tr>`;
         return;
     }
 
-    // تجميع الزيارات لكل مندوب
     const repVisits = {};
-    AppState.filteredData.forEach(record => {
+    AppState.filteredVisits.forEach(record => {
         if (!repVisits[record.repId]) {
-            repVisits[record.repId] = { target: 0, actual: 0 };
+            repVisits[record.repId] = 0;
         }
-        repVisits[record.repId].target += record.targetVisits;
-        repVisits[record.repId].actual += record.actualVisits;
+        repVisits[record.repId] += record.actualVisits;
     });
 
-    // استخدام DocumentFragment لرفع الأداء (Performance Optimization)
     const fragment = document.createDocumentFragment();
 
     Object.keys(repVisits).forEach(repId => {
         const emp = employees.find(e => e.id == repId);
-        const data = repVisits[repId];
-        const coverage = ((data.actual / data.target) * 100).toFixed(1);
+        const actual = repVisits[repId];
         
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${emp.name}</td>
             <td><span style="background:var(--bg-main); padding: 4px 8px; border-radius: 4px;">${emp.team}</span></td>
             <td>${emp.area}</td>
-            <td>${data.target}</td>
-            <td>${data.actual}</td>
-            <td style="color: ${coverage < 80 ? 'var(--danger)' : 'var(--success)'}; font-weight: bold;">
-                ${coverage}%
-            </td>
+            <td style="font-weight: bold; color: var(--primary);">${actual}</td>
         `;
         fragment.appendChild(tr);
     });
 
     tbody.appendChild(fragment);
 }
+
+// تحليل ذكي جديد متوافق مع إلغاء تارجت الزيارات
+function generateSWOT() {
+    const swotList = document.getElementById('swot-list');
+    swotList.innerHTML = '';
+    
+    if (AppState.filteredSales.length === 0 && AppState.filteredVisits.length === 0) {
+        swotList.innerHTML = `<li class="empty-state">غير متوفر</li>`;
+        return;
+    }
+
+    const insights = [];
+
+    // رؤى المبيعات والنسبة
+    let totalSales = 0;
+    let targetTotal = 0;
+    const isValue = AppState.mode === 'value';
+
+    AppState.filteredSales.forEach(r => totalSales += isValue ? r.soldValue : r.soldQty);
+
+    if (AppState.filters.team !== 'all') {
+        targetTotal = monthlyTargets[AppState.filters.team][isValue ? 'value' : 'qty'];
+    } else {
+        Object.values(monthlyTargets).forEach(t => targetTotal += t[isValue ? 'value' : 'qty']);
+    }
+
+    if (targetTotal > 0) {
+        const achievementRate = (totalSales / targetTotal) * 100;
+        if (achievementRate >= 100) {
+            insights.push(`🟢 <strong>نقطة قوة (Strength):</strong> تحقيق الأهداف يسير بشكل ممتاز وبنسبة تتجاوز 100%.`);
+        } else if (achievementRate >= 75) {
+            insights.push(`🔵 <strong>فرصة (Opportunity):</strong> الأداء جيد جداً (${achievementRate.toFixed(1)}%)، مع إمكانية الوصول للهدف بتوجيه جهود تسويقية إضافية.`);
+        } else {
+            insights.push(`🔴 <strong>تنبيه (Warning):</strong> نسبة التحقيق الحالية (${achievementRate.toFixed(1)}%) تتطلب مراجعة الأداء في المناطق الضعيفة.`);
+        }
+    }
+
+    // رؤى الزيارات الميدانية
+    const totalVisits = AppState.filteredVisits.reduce((sum, r) => sum + r.actualVisits, 0);
+    if (totalVisits > 0) {
+        insights.push(`📋 <strong>النشاط الميداني:</strong> إجمالي الزيارات الفعلية المنجزة للفترة المحددة هو <strong>${totalVisits}</strong> زيارة.`);
+    }
+
+    swotList.innerHTML = insights.map(i => `<li style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color);">${i}</li>`).join('');
+}
+
 let debounceTimer;
 function runAnalyticsEngine() {
     clearTimeout(debounceTimer);
@@ -224,40 +287,9 @@ function runAnalyticsEngine() {
         generateSWOT();
     }, 200);
 }
-function generateSWOT() {
-    const swotList = document.getElementById('swot-list');
-    swotList.innerHTML = '';
-    
-    if (AppState.filteredData.length === 0) {
-        swotList.innerHTML = `<li class="empty-state">غير متوفر</li>`;
-        return;
-    }
 
-    // تحليل ذكي مبسط
-    const totalVisits = AppState.filteredData.reduce((sum, r) => sum + r.actualVisits, 0);
-    const targetVisits = AppState.filteredData.reduce((sum, r) => sum + r.targetVisits, 0);
-    const visitCoverage = (totalVisits / targetVisits) * 100;
-
-    const insights = [];
-    if (visitCoverage < 85) {
-        insights.push(`🔴 <strong>نقطة ضعف (Weakness):</strong> تغطية الزيارات الحالية (${visitCoverage.toFixed(1)}%) أقل من المعيار المطلوب لعام 2026.`);
-    } else {
-        insights.push(`🟢 <strong>نقطة قوة (Strength):</strong> أداء ميداني ممتاز بتغطية زيارات تتجاوز ${visitCoverage.toFixed(1)}%.`);
-    }
-
-    // التركيز على فريق Azord كعنصر استراتيجي (مثال)
-    const azordData = AppState.filteredData.filter(r => employees.find(e => e.id === r.repId).team === 'Azord');
-    if(azordData.length > 0) {
-        insights.push(`🔵 <strong>فرصة (Opportunity):</strong> فريق Azord يحافظ على استقرار مستمر، يمكن توجيه استثمارات إضافية لزيادة حصته السوقية.`);
-    }
-
-    swotList.innerHTML = insights.map(i => `<li style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color);">${i}</li>`).join('');
-}
-
-// نقطة الانطلاق (App Initialization)
+// نقطة الانطلاق
 document.addEventListener('DOMContentLoaded', () => {
     initFilters();
     runAnalyticsEngine();
 });
-
-
