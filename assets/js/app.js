@@ -21,7 +21,87 @@ const monthlyTargets = {
     "Mixif": { qty: 2500, value: 20000 },
     "Clavodar": { qty: 6000, value: 65000 }
 };
+// ملف app.js
 
+// ضع هنا الرابط المباشر لملف الإكسل (يجب أن يكون رابط تحميل مباشر أو ملف مستضاف)
+const EXCEL_URL = 'https://example.com/path/to/your/data.xlsx'; 
+
+let globalData = []; // متغير لتخزين البيانات الأساسية
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // 1. جلب البيانات من الإكسل
+    globalData = await fetchExcelData(EXCEL_URL);
+    
+    if(globalData.length > 0) {
+        // 2. تفعيل الواجهة بالبيانات
+        initializeDashboard(globalData);
+    } else {
+        alert("لم يتم العثور على بيانات أو الرابط غير صالح.");
+    }
+});
+
+function initializeDashboard(data) {
+    // تعبئة الفلاتر (كمثال: استخراج الفرق المتاحة من البيانات)
+    populateFilters(data);
+    
+    // رسم المخططات
+    renderSalesChart(data);
+    
+    // تعبئة جدول الزيارات
+    renderVisitsTable(data);
+}
+
+// مثال: دالة لتعبئة الفلاتر بدون تكرار
+function populateFilters(data) {
+    const teamSelect = document.getElementById('filter-team');
+    // افتراض أن عمود الفرق في الإكسل اسمه "Team"
+    const teams = [...new Set(data.map(item => item.Team))].filter(Boolean);
+    
+    teams.forEach(team => {
+        const option = document.createElement('option');
+        option.value = team;
+        option.textContent = team;
+        teamSelect.appendChild(option);
+    });
+}
+
+// مثال: دالة تعبئة جدول الزيارات
+function renderVisitsTable(data) {
+    const tbody = document.getElementById('visits-body');
+    tbody.innerHTML = ''; // تفريغ الجدول الحالي
+    
+    data.forEach(row => {
+        // افتراض أسماء الأعمدة في الإكسل (RepName, Team, Area, Specialty, TotalVisits)
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${row.RepName || 'غير محدد'}</td>
+            <td>${row.Team || 'غير محدد'}</td>
+            <td>${row.Area || 'غير محدد'}</td>
+            <td>${row.Specialty || 'غير محدد'}</td>
+            <td>${row.TotalVisits || 0}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// مثال: رسم المخطط باستخدام Chart.js
+function renderSalesChart(data) {
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    
+    // هنا تقوم بتجميع البيانات حسب الشهر من مصفوفة data
+    // الكود أدناه هو هيكل افتراضي للمخطط
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['يناير', 'فبراير', 'مارس', 'أبريل'], // تستخرج من الإكسل
+            datasets: [{
+                label: 'المبيعات',
+                data: [12000, 19000, 3000, 5000], // تستخرج وتحسب من الإكسل
+                backgroundColor: '#2e7d32'
+            }]
+        }
+    });
+}
 // ==========================================
 // 2. محرك تحميل البيانات (Data Fetching Engine)
 // ==========================================
